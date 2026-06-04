@@ -1,0 +1,6 @@
+@NutriTrackerAPI_HostAddress = http://localhost:5049
+
+GET {{NutriTrackerAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
