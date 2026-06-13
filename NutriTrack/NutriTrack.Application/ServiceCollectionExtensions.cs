@@ -16,6 +16,8 @@ public static class ServiceCollectionExtensions
     {
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IRecipieProposalService, MockRecipieProposalService>();
+        services.AddScoped<IRecipeNutritionService, RecipeNutritionService>();
+        services.AddScoped<IDeficiencyAnalysisService, DeficiencyAnalysisService>();
         return services;
     }
 }

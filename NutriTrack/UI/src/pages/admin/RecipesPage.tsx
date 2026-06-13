@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
-import type { Recipe } from '../../dto';
+import type { Recipe, RecipeNutrition } from '../../dto';
 import type { Ingredient } from '../../dto';
 
 type ModalMode = 'create' | 'edit' | null;
@@ -23,6 +23,9 @@ export default function RecipesPage() {
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [selectedIngs, setSelectedIngs] = useState<Record<string, string>>({}); // ingredientId → amount string
   const [ingSearch, setIngSearch] = useState('');
+
+  // Nutrition modal state
+  const [nutritionModal, setNutritionModal] = useState<{ recipeName: string; data: RecipeNutrition | null; loading: boolean; error: string | null } | null>(null);
 
   const fetch = useCallback(async () => {
     setLoading(true);
@@ -59,6 +62,16 @@ export default function RecipesPage() {
     const res = await api.delete(`/recipes/${id}`);
     if (res.error) setError(res.error);
     else setItems((prev) => prev.filter((i) => i.id !== id));
+  };
+
+  const openNutrition = async (item: Recipe) => {
+    setNutritionModal({ recipeName: item.name, data: null, loading: true, error: null });
+    const res = await api.get<RecipeNutrition>(`/recipes/${item.id}/nutrition`);
+    if (res.data) {
+      setNutritionModal({ recipeName: item.name, data: res.data, loading: false, error: null });
+    } else {
+      setNutritionModal({ recipeName: item.name, data: null, loading: false, error: res.error });
+    }
   };
 
   const handleCreate = async () => {
@@ -149,6 +162,7 @@ export default function RecipesPage() {
                   <td className="text-sm">{item.youTubeUrl ? <a href={item.youTubeUrl} target="_blank" rel="noopener noreferrer">Watch</a> : '—'}</td>
                   <td>
                     <div className="flex gap-1">
+                      <button className="btn btn-ghost btn-sm" onClick={() => openNutrition(item)} title="View nutrition">📊</button>
                       <Link to={`/admin/recipes/${item.id}`} className="btn btn-ghost btn-sm">🥘</Link>
                       <button className="btn btn-ghost btn-sm" onClick={() => openEdit(item)}>✏️</button>
                       <button className="btn btn-ghost btn-sm" onClick={() => handleDelete(item.id)}>🗑️</button>
@@ -232,6 +246,51 @@ export default function RecipesPage() {
               <button className="btn btn-primary" disabled={formLoading} onClick={modalMode === 'create' ? handleCreate : handleUpdate}>
                 {formLoading ? 'Saving...' : modalMode === 'create' ? 'Create' : 'Save'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Nutrition Modal ─── */}
+      {nutritionModal && (
+        <div className="modal-overlay">
+          <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>📊 {nutritionModal.recipeName} — Nutrition</h2>
+              <button className="btn btn-ghost" onClick={() => setNutritionModal(null)}>✕</button>
+            </div>
+            <div className="modal-body">
+              {nutritionModal.loading && <p className="text-muted">Loading nutrition data...</p>}
+              {nutritionModal.error && <div className="alert alert-error">{nutritionModal.error}</div>}
+              {nutritionModal.data && nutritionModal.data.micronutrients.length === 0 && (
+                <div className="empty-state">
+                  <h3>No nutrition data</h3>
+                  <p>This recipe has no micronutrient data associated with its ingredients.</p>
+                </div>
+              )}
+              {nutritionModal.data && nutritionModal.data.micronutrients.length > 0 && (
+                <div className="table-container">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Micronutrient</th>
+                        <th style={{ width: 160, textAlign: 'right' }}>Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {nutritionModal.data.micronutrients.map((m) => (
+                        <tr key={m.micronutrientId}>
+                          <td><strong>{m.micronutrientName}</strong></td>
+                          <td style={{ textAlign: 'right' }}>{m.totalAmount} {m.unit}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+            <div className="modal-actions">
+              <button className="btn btn-secondary" onClick={() => setNutritionModal(null)}>Close</button>
             </div>
           </div>
         </div>

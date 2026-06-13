@@ -83,3 +83,18 @@ export interface CreateMealLogRequest {
   servings: number | null;
   note: string | null;
 }
+
+// ─── Nutrition ─────────────────────────────────────────────────────────────────
+
+export interface MicronutrientTotal {
+  micronutrientId: string;
+  micronutrientName: string;
+  totalAmount: number;
+  unit: string;
+}
+
+export interface RecipeNutrition {
+  recipeId: string;
+  recipeName: string;
+  micronutrients: MicronutrientTotal[];
+}

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../api/client';
-import type { MealLog, CreateMealLogRequest } from '../dto';
+import type { MealLog, CreateMealLogRequest, RecipeNutrition } from '../dto';
 import type { Ingredient, Recipe } from '../dto';
 
 type ModalMode = 'create' | 'edit' | null;
@@ -33,6 +33,8 @@ export default function MealLogsPage() {
   const [formLoading, setFormLoading] = useState(false);
   const [recipeSearch, setRecipeSearch] = useState('');
   const [ingredientSearch, setIngredientSearch] = useState('');
+
+  const [nutritionModal, setNutritionModal] = useState<{ log: MealLog; data: RecipeNutrition | null; loading: boolean; error: string | null } | null>(null);
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -169,6 +171,17 @@ export default function MealLogsPage() {
     return '❓';
   };
 
+  const openNutrition = async (log: MealLog) => {
+    if (!log.recipeId) return;
+    setNutritionModal({ log, data: null, loading: true, error: null });
+    const res = await api.get<RecipeNutrition>(`/meal-logs/${log.id}/nutrition`);
+    if (res.data) {
+      setNutritionModal({ log, data: res.data, loading: false, error: null });
+    } else {
+      setNutritionModal({ log, data: null, loading: false, error: res.error });
+    }
+  };
+
   // ─── Render ───
 
   if (loading) {
@@ -220,6 +233,11 @@ export default function MealLogsPage() {
               </div>
             </div>
             <div className="meal-actions">
+              {log.recipeId && (
+                <button className="btn btn-ghost btn-sm" onClick={() => openNutrition(log)} title="View nutrition">
+                  📊
+                </button>
+              )}
               <button className="btn btn-ghost btn-sm" onClick={() => openEditModal(log)}>
                 ✏️
               </button>
@@ -396,6 +414,51 @@ export default function MealLogsPage() {
               >
                 {formLoading ? 'Saving...' : modalMode === 'create' ? 'Log Meal' : 'Save Changes'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Nutrition Modal ─── */}
+      {nutritionModal && (
+        <div className="modal-overlay">
+          <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>📊 {nutritionModal.log.recipeId ? getItemName(nutritionModal.log) : ''} — Nutrition</h2>
+              <button className="btn btn-ghost" onClick={() => setNutritionModal(null)}>✕</button>
+            </div>
+            <div className="modal-body">
+              {nutritionModal.loading && <p className="text-muted">Loading nutrition data...</p>}
+              {nutritionModal.error && <div className="alert alert-error">{nutritionModal.error}</div>}
+              {nutritionModal.data && nutritionModal.data.micronutrients.length === 0 && (
+                <div className="empty-state">
+                  <h3>No nutrition data</h3>
+                  <p>This recipe has no micronutrient data associated with its ingredients.</p>
+                </div>
+              )}
+              {nutritionModal.data && nutritionModal.data.micronutrients.length > 0 && (
+                <div className="table-container">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Micronutrient</th>
+                        <th style={{ width: 160, textAlign: 'right' }}>Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {nutritionModal.data.micronutrients.map((m) => (
+                        <tr key={m.micronutrientId}>
+                          <td><strong>{m.micronutrientName}</strong></td>
+                          <td style={{ textAlign: 'right' }}>{m.totalAmount} {m.unit}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+            <div className="modal-actions">
+              <button className="btn btn-secondary" onClick={() => setNutritionModal(null)}>Close</button>
             </div>
           </div>
         </div>

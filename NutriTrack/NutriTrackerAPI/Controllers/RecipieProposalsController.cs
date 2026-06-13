@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NutriTrack.Application.Services;
 using NutriTrack.Domain.Data;
@@ -14,10 +15,15 @@ namespace NutriTracker.Api.Controllers
 
         private readonly NutriTrackDbContext _db;
         private readonly IRecipieProposalService _recipieProposalService;
-        public RecipieProposalsController(NutriTrackDbContext db, IRecipieProposalService recipieProposalService)
+        private readonly IDeficiencyAnalysisService _deficiencyAnalysisService;
+        public RecipieProposalsController(
+            NutriTrackDbContext db,
+            IRecipieProposalService recipieProposalService,
+            IDeficiencyAnalysisService deficiencyAnalysisService)
         {
             _db = db;
             _recipieProposalService = recipieProposalService;
+            _deficiencyAnalysisService = deficiencyAnalysisService;
         }
 
 
@@ -44,6 +50,50 @@ namespace NutriTracker.Api.Controllers
             }
 
             return Ok(result);
+        }
+
+        /// <summary>
+        /// Analyzes the authenticated user's meal history and suggests recipes
+        /// that best address their top micronutrient deficiencies.
+        /// </summary>
+        [HttpGet("deficiency")]
+        [Authorize]
+        public async Task<ActionResult<DeficiencyAnalysisResponse>> AnalyzeDeficiency(CancellationToken ct)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (userId == null)
+            {
+                return BadRequest("You need to be logged in to request a deficiency analysis");
+            }
+
+            var result = await _deficiencyAnalysisService.AnalyzeAndSuggestAsync(userId, ct);
+
+            var response = new DeficiencyAnalysisResponse(
+                result.LookbackDays,
+                result.TotalDaysWithData,
+                result.TopDeficits.Select(d => new MicronutrientDeficitResponse(
+                    d.MicronutrientId,
+                    d.MicronutrientName,
+                    d.RecommendedDailyAmount,
+                    d.AverageDailyConsumed,
+                    d.DeficitPercentage,
+                    d.Unit
+                )).ToList(),
+                result.SuggestedRecipes.Select(r => new DeficitRecipeSuggestionResponse(
+                    r.RecipeId,
+                    r.RecipeName,
+                    r.PrepNote,
+                    r.YouTubeUrl,
+                    r.CoveredMicronutrients.Select(m => new CoveredMicronutrientResponse(
+                        m.MicronutrientId,
+                        m.MicronutrientName,
+                        m.TotalAmount,
+                        m.Unit
+                    )).ToList()
+                )).ToList()
+            );
+
+            return Ok(response);
         }
 
     }

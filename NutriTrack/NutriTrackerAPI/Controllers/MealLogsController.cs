@@ -2,6 +2,8 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using NutriTrack.Application.DTOs;
+using NutriTrack.Application.Services;
 using NutriTrack.Domain.Data;
 using NutriTrack.Domain.Entities;
 using NutriTrack.Identity.Configuration;
@@ -19,10 +21,12 @@ namespace NutriTrackerAPI.Controllers;
 public class MealLogsController : ControllerBase
 {
     private readonly NutriTrackDbContext _db;
+    private readonly IRecipeNutritionService _nutritionService;
 
-    public MealLogsController(NutriTrackDbContext db)
+    public MealLogsController(NutriTrackDbContext db, IRecipeNutritionService nutritionService)
     {
         _db = db;
+        _nutritionService = nutritionService;
     }
 
     private string GetUserId() =>
@@ -76,6 +80,24 @@ public class MealLogsController : ControllerBase
             mealLog.Id, mealLog.EatenAt, mealLog.EatenByUserId,
             mealLog.RecipeId, mealLog.IngredientId,
             mealLog.AmountInGrams, mealLog.Servings, mealLog.Note));
+    }
+
+    [HttpGet("{id:guid}/nutrition")]
+    public async Task<ActionResult<RecipeNutritionDto>> GetNutritionById(Guid id, CancellationToken ct)
+    {
+        var userId = GetUserId();
+
+        var mealLog = await _db.MealLogs.FindAsync([id], ct);
+        if (mealLog is null)
+            return NotFound();
+
+        // Non-admin users can only access their own logs
+        if (!IsAdmin() && mealLog.EatenByUserId != userId)
+            return Forbid();
+
+        var result  = await _nutritionService.ComputeNutritionAsync(mealLog.RecipeId!.Value,ct);
+
+        return Ok(result);
     }
 
     /// <summary>Create a new meal log entry for the current user.</summary>

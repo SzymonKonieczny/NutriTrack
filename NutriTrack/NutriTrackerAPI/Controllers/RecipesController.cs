@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using NutriTrack.Application.DTOs;
+using NutriTrack.Application.Services;
 using NutriTrack.Domain.Data;
 using NutriTrack.Domain.Entities;
 using NutriTrack.Identity.Configuration;
@@ -17,10 +19,12 @@ namespace NutriTrackerAPI.Controllers;
 public class RecipesController : ControllerBase
 {
     private readonly NutriTrackDbContext _db;
+    private readonly IRecipeNutritionService _nutritionService;
 
-    public RecipesController(NutriTrackDbContext db)
+    public RecipesController(NutriTrackDbContext db, IRecipeNutritionService nutritionService)
     {
         _db = db;
+        _nutritionService = nutritionService;
     }
 
     /// <summary>List all recipes.</summary>
@@ -44,6 +48,18 @@ public class RecipesController : ControllerBase
             return NotFound();
 
         return Ok(new RecipeResponse(recipe.Id, recipe.Name, recipe.PrepNote, recipe.YouTubeUrl));
+    }
+
+    /// <summary>Get the computed nutrition profile for a recipe.</summary>
+    [HttpGet("{id:guid}/nutrition")]
+    [Authorize(Roles = IdentityConstants.Roles.Admin)]
+    public async Task<ActionResult<RecipeNutritionDto>> GetNutrition(Guid id, CancellationToken ct)
+    {
+        var result = await _nutritionService.ComputeNutritionAsync(id, ct);
+        if (result is null)
+            return NotFound();
+
+        return Ok(result);
     }
 
     /// <summary>Create a new recipe.</summary>
