@@ -1,4 +1,4 @@
-const API_BASE = 'https://localhost:7189/api';
+const API_BASE = 'https://api.nutritrack.pl/api';
 
 interface ApiResponse<T> {
   data: T | null;

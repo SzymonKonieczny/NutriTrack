@@ -98,3 +98,36 @@ export interface RecipeNutrition {
   recipeName: string;
   micronutrients: MicronutrientTotal[];
 }
+
+// ─── Deficiency Analysis ──────────────────────────────────────────────────────
+
+export interface MicronutrientDeficit {
+  micronutrientId: string;
+  micronutrientName: string;
+  recommendedDailyAmount: number;
+  averageDailyConsumed: number;
+  deficitPercentage: number;
+  unit: string;
+}
+
+export interface CoveredMicronutrient {
+  micronutrientId: string;
+  micronutrientName: string;
+  totalAmount: number;
+  unit: string;
+}
+
+export interface DeficitRecipeSuggestion {
+  recipeId: string;
+  recipeName: string;
+  prepNote: string | null;
+  youTubeUrl: string | null;
+  coveredMicronutrients: CoveredMicronutrient[];
+}
+
+export interface DeficiencyAnalysis {
+  lookbackDays: number;
+  totalDaysWithData: number;
+  topDeficits: MicronutrientDeficit[];
+  suggestedRecipes: DeficitRecipeSuggestion[];
+}

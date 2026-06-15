@@ -27,7 +27,7 @@ namespace NutriTrack.Application.Services
             }
             else
             {
-                mealsEaten = await _db.MealLogs.Where(m => m.EatenByUserId == userId && m.EatenAt < weekAgo).ToListAsync();
+                mealsEaten = await _db.MealLogs.Where (m=> m.EatenByUserId == userId && m.EatenAt < weekAgo).ToListAsync();
             }
 
 
