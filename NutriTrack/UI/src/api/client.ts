@@ -1,4 +1,4 @@
-const API_BASE = 'https://api.nutritrack.pl/api';
+const API_BASE = import.meta.env.VITE_API_BASE ?? '/api';
 
 interface ApiResponse<T> {
   data: T | null;

@@ -52,7 +52,6 @@ public class RecipesController : ControllerBase
 
     /// <summary>Get the computed nutrition profile for a recipe.</summary>
     [HttpGet("{id:guid}/nutrition")]
-    [Authorize(Roles = IdentityConstants.Roles.Admin)]
     public async Task<ActionResult<RecipeNutritionDto>> GetNutrition(Guid id, CancellationToken ct)
     {
         var result = await _nutritionService.ComputeNutritionAsync(id, ct);

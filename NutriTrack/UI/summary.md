@@ -18,11 +18,12 @@ src/
 │   ├── RegisterPage.tsx
 │   ├── DashboardPage.tsx
 │   ├── MealLogsPage.tsx
+│   ├── RecipesPage.tsx       # Non-admin: browse + log meals + view nutrition
 │   └── admin/
 │       ├── AdminDashboard.tsx
 │       ├── IngredientsPage.tsx
 │       ├── MicronutrientsPage.tsx
-│       ├── RecipesPage.tsx
+│       ├── RecipesPage.tsx    # Admin CRUD for recipes (imported as AdminRecipesPage)
 │       ├── RecipeDetailPage.tsx
 │       └── IngredientDetailPage.tsx
 ├── App.tsx                   # Route definitions (all routing lives here)
@@ -43,13 +44,14 @@ src/
         → Layout                      (shell: header + <Outlet/>)
           index         → DashboardPage
           meal-logs     → MealLogsPage
-          admin         → AdminRoute   (gate)
-            → AdminLayout            (sidebar + <Outlet/>)
+          recipes       → RecipesPage         (non-admin browse + log)
+          admin         → AdminRoute         (gate)
+            → AdminLayout                   (sidebar + <Outlet/>)
               index             → AdminDashboard
               ingredients       → IngredientsPage
               ingredients/:id   → IngredientDetailPage
               micronutrients    → MicronutrientsPage
-              recipes           → RecipesPage
+              recipes           → AdminRecipesPage  (admin CRUD)
               recipes/:id       → RecipeDetailPage
     </Routes>
   </AuthProvider>

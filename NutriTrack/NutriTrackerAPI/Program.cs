@@ -83,4 +83,7 @@ app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
-app.Run("http://localhost:5100");
+if (!app.Environment.IsDevelopment())
+    app.Run("http://localhost:5100");
+else 
+    app.Run();

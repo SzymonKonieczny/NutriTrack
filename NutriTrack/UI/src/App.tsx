@@ -8,10 +8,11 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import MealLogsPage from './pages/MealLogsPage';
+import RecipesPage from './pages/RecipesPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import IngredientsPage from './pages/admin/IngredientsPage';
 import MicronutrientsPage from './pages/admin/MicronutrientsPage';
-import RecipesPage from './pages/admin/RecipesPage';
+import AdminRecipesPage from './pages/admin/RecipesPage';
 import RecipeDetailPage from './pages/admin/RecipeDetailPage';
 import IngredientDetailPage from './pages/admin/IngredientDetailPage';
 
@@ -29,6 +30,7 @@ function App() {
             <Route element={<Layout />}>
               <Route index element={<DashboardPage />} />
               <Route path="meal-logs" element={<MealLogsPage />} />
+              <Route path="recipes" element={<RecipesPage />} />
 
               {/* Admin nested routes */}
               <Route path="admin" element={<AdminRoute />}>
@@ -37,7 +39,7 @@ function App() {
                   <Route path="ingredients" element={<IngredientsPage />} />
                   <Route path="ingredients/:ingredientId" element={<IngredientDetailPage />} />
                   <Route path="micronutrients" element={<MicronutrientsPage />} />
-                  <Route path="recipes" element={<RecipesPage />} />
+                  <Route path="recipes" element={<AdminRecipesPage />} />
                   <Route path="recipes/:recipeId" element={<RecipeDetailPage />} />
                 </Route>
               </Route>
