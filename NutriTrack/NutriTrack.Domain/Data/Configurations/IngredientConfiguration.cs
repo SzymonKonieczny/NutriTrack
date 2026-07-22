@@ -15,5 +15,12 @@ public class IngredientConfiguration : IEntityTypeConfiguration<Ingredient>
         builder.Property(e => e.Name)
                .IsRequired()
                .HasMaxLength(200);
+
+        builder.Property(e => e.Visibility)
+               .IsRequired()
+               .HasConversion<string>()
+               .HasMaxLength(50);
+
+        builder.HasIndex(e => e.AuthorId);
     }
 }

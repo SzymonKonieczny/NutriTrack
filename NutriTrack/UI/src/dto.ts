@@ -37,6 +37,8 @@ export interface Ingredient {
   id: string;
   name: string;
   note: string | null;
+  authorId?: string | null;
+  visibility?: string | null;
 }
 
 export interface IngredientMicronutrient {
@@ -53,6 +55,8 @@ export interface Recipe {
   name: string;
   prepNote: string | null;
   youTubeUrl: string | null;
+  authorId?: string | null;
+  visibility?: string | null;
 }
 
 export interface RecipeIngredient {

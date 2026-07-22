@@ -52,7 +52,7 @@ NutriTrack.sln
 
 - **Auth architecture**: ASP.NET Core Identity with JWT bearer auth. Two roles: `Admin` and `User`. Refresh token rotation (each refresh issues a new token pair and revokes the old one). Soft-delete on `ApplicationUser`.
 
-- **Authorization model**: Admin-only CRUD for ingredients, micronutrients, recipes, and their associations. Authenticated users (User + Admin roles) manage their own meal logs; admins can see all.
+- **Authorization model**: Admin-only CRUD for micronutrients. Authenticated users can create their own recipes and ingredients (default `Private` visibility). Users see their own items + public items + system/admin-created items; admins see all. Recipe/ingredient authors can update/delete their own items. The `EntryVisibility` enum (`Private`, `Unlisted`, `Public`, `Rejected`) controls publication status. Meal logs follow the same user-scoped access pattern.
 
 ## Build & run
 
@@ -108,11 +108,11 @@ The UI is a fresh Vite + React 19 + TypeScript 6 scaffold — no app-specific co
 | POST | `/api/auth/login` | Anonymous | Login |
 | POST | `/api/auth/refresh` | Anonymous | Refresh token pair |
 | POST | `/api/auth/logout` | Authenticated | Revoke all refresh tokens |
-| GET/POST/PUT/DELETE | `/api/ingredients` | Admin | CRUD ingredients |
+| GET/POST/PUT/DELETE | `/api/ingredients` | User/Admin | CRUD ingredients (users see own + public + system; admins see all) |
 | GET/POST/PUT/DELETE | `/api/micronutrients` | Admin | CRUD micronutrients |
-| GET/POST/PUT/DELETE | `/api/recipes` | Admin | CRUD recipes |
-| GET/POST/PUT/DELETE | `/api/recipes/{recipeId}/ingredients` | Admin | Manage recipe-ingredient associations (nested) |
-| GET/POST/PUT/DELETE | `/api/ingredients/{ingredientId}/micronutrients` | Admin | Manage ingredient-micronutrient associations (nested) |
+| GET/POST/PUT/DELETE | `/api/recipes` | User/Admin | CRUD recipes (users see own + public + system; admins see all) |
+| GET/POST/PUT/DELETE | `/api/recipes/{recipeId}/ingredients` | User/Admin | Manage recipe-ingredient associations (recipe author or admin) |
+| GET/POST/PUT/DELETE | `/api/ingredients/{ingredientId}/micronutrients` | User/Admin | Manage ingredient-micronutrient associations (ingredient author or admin) |
 | GET/POST/PUT/DELETE | `/api/meal-logs` | User/Admin | CRUD own meal logs (admin sees all) |
 
 ## Config

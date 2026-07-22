@@ -1,20 +1,26 @@
 using Microsoft.EntityFrameworkCore;
+using NutriTrack.Application.Abstractions;
 using NutriTrack.Application.DTOs;
 using NutriTrack.Domain.Data;
+using NutriTrack.Domain.Enums;
 
 namespace NutriTrack.Application.Services;
 
 /// <summary>
 /// Computes recipe nutrition by loading the recipe graph and aggregating
 /// ingredient micronutrient values scaled by the amount used.
+/// Enforces visibility: only returns nutrition for recipes the current user
+/// is allowed to see.
 /// </summary>
 internal sealed class RecipeNutritionService : IRecipeNutritionService
 {
     private readonly NutriTrackDbContext _db;
+    private readonly IUserContext _user;
 
-    public RecipeNutritionService(NutriTrackDbContext db)
+    public RecipeNutritionService(NutriTrackDbContext db, IUserContext user)
     {
         _db = db;
+        _user = user;
     }
 
     public async Task<RecipeNutritionDto?> ComputeNutritionAsync(Guid recipeId, CancellationToken ct = default)
@@ -27,6 +33,14 @@ internal sealed class RecipeNutritionService : IRecipeNutritionService
             .FirstOrDefaultAsync(r => r.Id == recipeId, ct);
 
         if (recipe is null)
+            return null;
+
+        // Visibility guard: non-admin users can only see their own recipes,
+        // public recipes, or system recipes (no author).
+        if (!_user.IsAdmin
+            && recipe.AuthorId != _user.UserId
+            && recipe.Visibility != EntryVisibility.Public
+            && recipe.AuthorId != null)
             return null;
 
         // For each recipe ingredient, scale the per-100g micronutrient values by the actual gram amount.

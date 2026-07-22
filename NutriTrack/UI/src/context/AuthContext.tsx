@@ -44,12 +44,9 @@ function getUserFromToken(token: string): User | null {
   const payload = parseJwtPayload(token);
   if (!payload) return null;
 
-  const nameClaim = 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name';
-  const nameIdentifierClaim = 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier';
-
   return {
-    id: (payload[nameIdentifierClaim] as string) || '',
-    email: (payload[nameClaim] as string) || '',
+    id: (payload['sub'] as string) || '',
+    email: (payload['email'] as string) || '',
     name: null,
     roles: getRolesFromToken(payload),
   };

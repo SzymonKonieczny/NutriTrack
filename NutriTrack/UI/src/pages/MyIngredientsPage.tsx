@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { api } from '../../api/client';
-import type { Ingredient } from '../../dto';
-import type { MicronutrientRef as Micronutrient } from '../../dto';
+import { useAuth } from '../context/AuthContext';
+import { api } from '../api/client';
+import type { Ingredient } from '../dto';
+import type { MicronutrientRef as Micronutrient } from '../dto';
 
 type ModalMode = 'create' | 'edit' | null;
 
@@ -13,7 +14,13 @@ const VISIBILITY_LABELS: Record<string, string> = {
   Rejected: '❌ Rejected',
 };
 
-export default function IngredientsPage() {
+const VISIBILITY_OPTIONS = [
+  { value: 'Private', label: '🔒 Private — only visible to you' },
+  { value: 'Unlisted', label: '🔎 Unlisted — request admin review for publication' },
+];
+
+export default function MyIngredientsPage() {
+  const { user } = useAuth();
   const [items, setItems] = useState<Ingredient[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -22,29 +29,26 @@ export default function IngredientsPage() {
 
   const [formName, setFormName] = useState('');
   const [formNote, setFormNote] = useState('');
+  const [formVisibility, setFormVisibility] = useState('Unlisted');
   const [formError, setFormError] = useState<string | null>(null);
   const [formLoading, setFormLoading] = useState(false);
 
   // Micronutrient multi-select state (create only)
   const [micronutrients, setMicronutrients] = useState<Micronutrient[]>([]);
-  const [selectedMicros, setSelectedMicros] = useState<Record<string, string>>({}); // micronutrientId → amount string
+  const [selectedMicros, setSelectedMicros] = useState<Record<string, string>>({});
   const [microSearch, setMicroSearch] = useState('');
-
-  // Pending review state
-  const [pendingItems, setPendingItems] = useState<Ingredient[]>([]);
-  const [pendingLoading, setPendingLoading] = useState(false);
-  const [pendingError, setPendingError] = useState<string | null>(null);
 
   const fetch = useCallback(async () => {
     setLoading(true);
     setError(null);
     const res = await api.get<Ingredient[]>('/ingredients');
     if (res.data) {
-      setItems(res.data.filter((i) => i.visibility !== 'Unlisted'));
-      setPendingItems(res.data.filter((i) => i.visibility === 'Unlisted'));
+      // Filter to show only the current user's ingredients
+      const myItems = res.data.filter((i) => i.authorId === user?.id);
+      setItems(myItems);
     } else setError(res.error);
     setLoading(false);
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => { fetch(); }, [fetch]);
 
@@ -52,10 +56,10 @@ export default function IngredientsPage() {
     setEditing(null);
     setFormName('');
     setFormNote('');
+    setFormVisibility('Unlisted');
     setFormError(null);
     setSelectedMicros({});
     setMicroSearch('');
-    // Fetch micronutrients for the multi-select
     const res = await api.get<Micronutrient[]>('/micronutrients');
     if (res.data) setMicronutrients(res.data);
     else setMicronutrients([]);
@@ -66,6 +70,7 @@ export default function IngredientsPage() {
     setEditing(item);
     setFormName(item.name);
     setFormNote(item.note || '');
+    setFormVisibility(item.visibility || 'Private');
     setFormError(null);
     setSelectedMicros({});
     setModalMode('edit');
@@ -92,6 +97,7 @@ export default function IngredientsPage() {
     const res = await api.post<Ingredient>('/ingredients', {
       name: formName.trim(),
       note: formNote || null,
+      visibility: formVisibility,
       micronutrients: micronutrientsPayload.length > 0 ? micronutrientsPayload : undefined,
     });
     setFormLoading(false);
@@ -106,7 +112,11 @@ export default function IngredientsPage() {
   const handleUpdate = async () => {
     if (!editing || !formName.trim()) { setFormError('Name is required'); return; }
     setFormLoading(true);
-    const res = await api.put<Ingredient>(`/ingredients/${editing.id}`, { name: formName.trim(), note: formNote || null });
+    const res = await api.put<Ingredient>(`/ingredients/${editing.id}`, {
+      name: formName.trim(),
+      note: formNote || null,
+      visibility: formVisibility,
+    });
     setFormLoading(false);
     if (res.data) {
       setItems((prev) => prev.map((i) => (i.id === editing.id ? res.data! : i)));
@@ -120,92 +130,25 @@ export default function IngredientsPage() {
     setSelectedMicros((prev) => ({ ...prev, [id]: value }));
   };
 
-  const handleApprove = async (id: string) => {
-    if (!window.confirm('Approve this ingredient for publication?')) return;
-    setPendingLoading(true);
-    setPendingError(null);
-    const res = await api.put<Ingredient>(`/ingredients/${id}/approve`);
-    setPendingLoading(false);
-    if (res.data) {
-      setPendingItems((prev) => prev.filter((i) => i.id !== id));
-      setItems((prev) => [...prev, res.data!]);
-    } else {
-      setPendingError(res.error);
-    }
-  };
-
-  const handleReject = async (id: string) => {
-    if (!window.confirm('Reject this ingredient? The author will be notified.')) return;
-    setPendingLoading(true);
-    setPendingError(null);
-    const res = await api.put<Ingredient>(`/ingredients/${id}/reject`);
-    setPendingLoading(false);
-    if (res.data) {
-      setPendingItems((prev) => prev.filter((i) => i.id !== id));
-      setItems((prev) => [...prev, res.data!]);
-    } else {
-      setPendingError(res.error);
-    }
-  };
-
-  if (loading) return <div className="spinner">Loading ingredients...</div>;
+  if (loading) return <div className="spinner">Loading your ingredients...</div>;
 
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
         <div>
-          <h1>Ingredients</h1>
-          <p className="text-muted text-sm">Manage food ingredients.</p>
+          <h1>My Ingredients</h1>
+          <p className="text-muted text-sm">Create and manage your own ingredients.</p>
         </div>
         <button className="btn btn-primary" onClick={openCreate}>+ New Ingredient</button>
       </div>
 
       {error && <div className="alert alert-error mb-2">{error}<button className="btn btn-ghost btn-sm" onClick={fetch} style={{marginLeft:'auto'}}>Retry</button></div>}
 
-      {!loading && !error && items.length === 0 && pendingItems.length === 0 && (
+      {!loading && !error && items.length === 0 && (
         <div className="empty-state">
           <h3>No ingredients yet</h3>
-          <p>Create your first ingredient to get started.</p>
+          <p>Create your own ingredients with custom micronutrient data.</p>
           <button className="btn btn-primary mt-1" onClick={openCreate}>Create Ingredient</button>
-        </div>
-      )}
-
-      {/* ─── Pending Review Section ─── */}
-      {pendingItems.length > 0 && (
-        <div className="card mb-2">
-          <div className="flex items-center justify-between mb-1">
-            <h2>🔎 Pending Review</h2>
-            {pendingLoading && <span className="text-muted text-sm">Processing...</span>}
-          </div>
-          {pendingError && <div className="alert alert-error mb-1">{pendingError}</div>}
-          <p className="text-muted text-sm mb-1">These ingredients have been submitted for review by their authors.</p>
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Note</th>
-                  <th>Author</th>
-                  <th style={{ width: 200 }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pendingItems.map((item) => (
-                  <tr key={item.id}>
-                    <td><strong>{item.name}</strong></td>
-                    <td className="text-muted text-sm">{item.note || '—'}</td>
-                    <td className="text-muted text-sm">{item.authorId ? item.authorId.substring(0, 8) + '…' : 'System'}</td>
-                    <td>
-                      <div className="flex gap-1">
-                        <button className="btn btn-success btn-sm" onClick={() => handleApprove(item.id)} disabled={pendingLoading}>✅ Approve</button>
-                        <button className="btn btn-danger btn-sm" onClick={() => handleReject(item.id)} disabled={pendingLoading}>❌ Reject</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
         </div>
       )}
 
@@ -228,7 +171,7 @@ export default function IngredientsPage() {
                   <td><span className="badge">{VISIBILITY_LABELS[item.visibility ?? 'Private'] || item.visibility}</span></td>
                   <td>
                     <div className="flex gap-1">
-                      <Link to={`/admin/ingredients/${item.id}`} className="btn btn-ghost btn-sm">🔗</Link>
+                      <Link to={`/my-ingredients/${item.id}/micronutrients`} className="btn btn-ghost btn-sm" title="Manage micronutrients">🔗</Link>
                       <button className="btn btn-ghost btn-sm" onClick={() => openEdit(item)}>✏️</button>
                       <button className="btn btn-ghost btn-sm" onClick={() => handleDelete(item.id)}>🗑️</button>
                     </div>
@@ -250,12 +193,25 @@ export default function IngredientsPage() {
             <div className="modal-body">
               {formError && <div className="alert alert-error">{formError}</div>}
               <div className="form-group">
-                <label htmlFor="ing-name">Name</label>
-                <input id="ing-name" type="text" className="form-input" value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="e.g. Chicken Breast" required />
+                <label htmlFor="my-ing-name">Name</label>
+                <input id="my-ing-name" type="text" className="form-input" value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="e.g. Chicken Breast" required />
               </div>
               <div className="form-group">
-                <label htmlFor="ing-note">Note</label>
-                <input id="ing-note" type="text" className="form-input" value={formNote} onChange={(e) => setFormNote(e.target.value)} placeholder="Optional note" />
+                <label htmlFor="my-ing-note">Note</label>
+                <input id="my-ing-note" type="text" className="form-input" value={formNote} onChange={(e) => setFormNote(e.target.value)} placeholder="Optional note" />
+              </div>
+              <div className="form-group">
+                <label htmlFor="my-ing-visibility">Visibility</label>
+                <select id="my-ing-visibility" className="form-select" value={formVisibility} onChange={(e) => setFormVisibility(e.target.value)}>
+                  {VISIBILITY_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+                <p className="text-muted text-sm mt-1">
+                  {formVisibility === 'Private'
+                    ? 'Only you and admins can see this ingredient.'
+                    : 'Admins will review your ingredient for potential publication.'}
+                </p>
               </div>
 
               {modalMode === 'create' && micronutrients.length > 0 && (

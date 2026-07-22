@@ -1,13 +1,16 @@
 using Microsoft.EntityFrameworkCore;
+using NutriTrack.Application.Abstractions;
 using NutriTrack.Application.DTOs;
 using NutriTrack.Domain.Data;
 using NutriTrack.Domain.Entities;
+using NutriTrack.Domain.Enums;
 
 namespace NutriTrack.Application.Services;
 
 /// <summary>
 /// Analyzes a user's meal log history for micronutrient deficiencies
 /// and suggests recipes that best address the top deficits.
+/// Only suggests recipes the current user is allowed to see.
 /// </summary>
 internal sealed class DeficiencyAnalysisService : IDeficiencyAnalysisService
 {
@@ -17,11 +20,16 @@ internal sealed class DeficiencyAnalysisService : IDeficiencyAnalysisService
 
     private readonly NutriTrackDbContext _db;
     private readonly IRecipeNutritionService _recipeNutritionService;
+    private readonly IUserContext _user;
 
-    public DeficiencyAnalysisService(NutriTrackDbContext db, IRecipeNutritionService recipeNutritionService)
+    public DeficiencyAnalysisService(
+        NutriTrackDbContext db,
+        IRecipeNutritionService recipeNutritionService,
+        IUserContext user)
     {
         _db = db;
         _recipeNutritionService = recipeNutritionService;
+        _user = user;
     }
 
     public async Task<DeficiencyAnalysisResultDto> AnalyzeAndSuggestAsync(string userId, CancellationToken ct = default)
@@ -148,19 +156,34 @@ internal sealed class DeficiencyAnalysisService : IDeficiencyAnalysisService
 
         // -----------------------------------------------------------------------
         // 5. Find recipes richest in the deficient micronutrients
-        //    Load all recipes with their full ingredient → micronutrient graph.
+        //    Only load recipes the current user is allowed to see.
         // -----------------------------------------------------------------------
         var targetMicronutrientIds = topDeficits.Select(d => d.MicronutrientId).ToHashSet();
 
-        var recipes = await _db.Recipes
+        var recipesQuery = _db.Recipes
             .Include(r => r.RecipeIngredients)
                 .ThenInclude(ri => ri.Ingredient)
                     .ThenInclude(i => i.IngredientMicronutrients)
                         .ThenInclude(im => im.Micronutrient)
             .Where(r => r.RecipeIngredients
                 .Any(ri => ri.Ingredient.IngredientMicronutrients
-                    .Any(im => targetMicronutrientIds.Contains(im.MicronutrientId))))
-            .ToListAsync(ct);
+                    .Any(im => targetMicronutrientIds.Contains(im.MicronutrientId))));
+
+        // Visibility filter: non-admin users only see their own recipes,
+        // public recipes, or system recipes (no author).
+        if (!_user.IsAdmin)
+        {
+            recipesQuery = recipesQuery.Where(r =>
+                r.AuthorId == _user.UserId
+                || r.Visibility == EntryVisibility.Public
+                || r.AuthorId == null);
+        }
+
+        var recipes = await recipesQuery.ToListAsync(ct);
+
+        // Score each recipe: for each deficient micronutrient, what % of RDA
+        // does one serving of this recipe cover? Sum those percentages.
+        // ... rest unchanged
 
         // Score each recipe: for each deficient micronutrient, what % of RDA
         // does one serving of this recipe cover? Sum those percentages.

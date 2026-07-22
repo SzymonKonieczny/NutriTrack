@@ -47,7 +47,6 @@ public class MealLogsController : ControllerBase
             .Include(m => m.Ingredient)
             .AsQueryable();
 
-        // Admin can see all logs; regular users see only their own
         if (!IsAdmin())
             query = query.Where(m => m.EatenByUserId == userId);
 

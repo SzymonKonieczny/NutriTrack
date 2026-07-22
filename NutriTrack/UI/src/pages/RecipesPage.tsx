@@ -1,8 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
 import type { Recipe, RecipeNutrition, CreateMealLogRequest, MealLog } from '../dto';
 
+const VISIBILITY_LABELS: Record<string, string> = {
+  Private: '🔒',
+  Unlisted: '🔎',
+  Public: '🌍',
+  Rejected: '❌',
+};
+
 export default function RecipesPage() {
+  const { user } = useAuth();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -59,6 +68,13 @@ export default function RecipesPage() {
     }
   };
 
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Delete this recipe?')) return;
+    const res = await api.delete(`/recipes/${id}`);
+    if (res.error) setError(res.error);
+    else setRecipes((prev) => prev.filter((i) => i.id !== id));
+  };
+
   const filtered = recipes.filter((r) =>
     r.name.toLowerCase().includes(search.toLowerCase())
   );
@@ -69,7 +85,7 @@ export default function RecipesPage() {
     <div className="page page-wide">
       <div className="flex items-center justify-between mb-2">
         <div>
-          <h1>Recipes</h1>
+          <h1>Browse Recipes</h1>
           <p className="text-muted text-sm">Browse recipes and log them as meals.</p>
         </div>
         <input
@@ -99,31 +115,47 @@ export default function RecipesPage() {
       )}
 
       <div className="flex flex-col gap-2 mt-2">
-        {filtered.map((recipe) => (
-          <div key={recipe.id} className="meal-log-card">
-            <div className="meal-info">
-              <div className="meal-name">{recipe.name}</div>
-              <div className="meal-meta">
-                {recipe.prepNote && <span>📝 {recipe.prepNote}</span>}
-                {recipe.youTubeUrl && (
-                  <span>
-                    ▶️ <a href={recipe.youTubeUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>
-                      Watch on YouTube
-                    </a>
-                  </span>
+        {filtered.map((recipe) => {
+          const isOwn = user && recipe.authorId === user.id;
+          return (
+            <div key={recipe.id} className="meal-log-card">
+              <div className="meal-info">
+                <div className="meal-name">
+                  {recipe.name}
+                  {isOwn && (
+                    <span className="badge" style={{ marginLeft: '0.5rem', fontSize: '0.75rem' }}>
+                      {VISIBILITY_LABELS[recipe.visibility ?? 'Private'] ?? ''} {recipe.visibility ?? 'Private'}
+                    </span>
+                  )}
+                </div>
+                <div className="meal-meta">
+                  {recipe.prepNote && <span>📝 {recipe.prepNote}</span>}
+                  {recipe.youTubeUrl && (
+                    <span>
+                      ▶️ <a href={recipe.youTubeUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>
+                        Watch on YouTube
+                      </a>
+                    </span>
+                  )}
+                  {isOwn && <span className="text-muted">(yours)</span>}
+                </div>
+              </div>
+              <div className="meal-actions">
+                <button className="btn btn-ghost btn-sm" onClick={() => openNutrition(recipe)} title="View nutrition">
+                  📊
+                </button>
+                <button className="btn btn-primary btn-sm" onClick={() => openLogModal(recipe)}>
+                  + Log Meal
+                </button>
+                {isOwn && (
+                  <button className="btn btn-ghost btn-sm" onClick={() => handleDelete(recipe.id)} title="Delete">
+                    🗑️
+                  </button>
                 )}
               </div>
             </div>
-            <div className="meal-actions">
-              <button className="btn btn-ghost btn-sm" onClick={() => openNutrition(recipe)} title="View nutrition">
-                📊
-              </button>
-              <button className="btn btn-primary btn-sm" onClick={() => openLogModal(recipe)}>
-                + Log Meal
-              </button>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* ─── Nutrition Modal ─── */}

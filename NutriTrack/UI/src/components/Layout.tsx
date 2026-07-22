@@ -24,8 +24,14 @@ export default function Layout() {
               <NavLink to="/meal-logs" className={({ isActive }) => isActive ? 'active' : ''}>
                 Meal Logs
               </NavLink>
+              <NavLink to="/my-recipes" className={({ isActive }) => isActive ? 'active' : ''}>
+                My Recipes
+              </NavLink>
+              <NavLink to="/my-ingredients" className={({ isActive }) => isActive ? 'active' : ''}>
+                My Ingredients
+              </NavLink>
               <NavLink to="/recipes" className={({ isActive }) => isActive ? 'active' : ''}>
-                Recipes
+                Browse Recipes
               </NavLink>
               {user.roles.includes('Admin') && (
                 <NavLink to="/admin" className={({ isActive }) => isActive ? 'active' : ''}>

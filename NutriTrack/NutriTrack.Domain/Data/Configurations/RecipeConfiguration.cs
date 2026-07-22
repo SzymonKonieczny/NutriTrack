@@ -18,5 +18,12 @@ public class RecipeConfiguration : IEntityTypeConfiguration<Recipe>
 
         builder.Property(e => e.YouTubeUrl)
                .HasMaxLength(500);
+
+        builder.Property(e => e.Visibility)
+               .IsRequired()
+               .HasConversion<string>()
+               .HasMaxLength(50);
+
+        builder.HasIndex(e => e.AuthorId);
     }
 }

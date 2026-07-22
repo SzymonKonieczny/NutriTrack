@@ -9,6 +9,10 @@ import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import MealLogsPage from './pages/MealLogsPage';
 import RecipesPage from './pages/RecipesPage';
+import MyRecipesPage from './pages/MyRecipesPage';
+import MyIngredientsPage from './pages/MyIngredientsPage';
+import MyRecipeIngredientsPage from './pages/MyRecipeIngredientsPage';
+import MyIngredientMicronutrientsPage from './pages/MyIngredientMicronutrientsPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import IngredientsPage from './pages/admin/IngredientsPage';
 import MicronutrientsPage from './pages/admin/MicronutrientsPage';
@@ -31,6 +35,10 @@ function App() {
               <Route index element={<DashboardPage />} />
               <Route path="meal-logs" element={<MealLogsPage />} />
               <Route path="recipes" element={<RecipesPage />} />
+              <Route path="my-recipes" element={<MyRecipesPage />} />
+              <Route path="my-recipes/:recipeId/ingredients" element={<MyRecipeIngredientsPage />} />
+              <Route path="my-ingredients" element={<MyIngredientsPage />} />
+              <Route path="my-ingredients/:ingredientId/micronutrients" element={<MyIngredientMicronutrientsPage />} />
 
               {/* Admin nested routes */}
               <Route path="admin" element={<AdminRoute />}>

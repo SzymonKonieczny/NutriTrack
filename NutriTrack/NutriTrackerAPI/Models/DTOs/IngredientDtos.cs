@@ -9,15 +9,19 @@ public record CreateIngredientMicronutrientEntry(
 public record CreateIngredientRequest(
     string Name,
     string? Note = null,
+    string? Visibility = null,
     List<CreateIngredientMicronutrientEntry>? Micronutrients = null);
 
 /// <summary>Request to update an existing ingredient.</summary>
 public record UpdateIngredientRequest(
     string Name,
-    string? Note = null);
+    string? Note = null,
+    string? Visibility = null);
 
 /// <summary>Response containing ingredient data.</summary>
 public record IngredientResponse(
     Guid Id,
     string Name,
-    string? Note);
+    string? Note,
+    Guid? AuthorId = null,
+    string? Visibility = null);

@@ -5,19 +5,24 @@ using NutriTrack.Domain.Data;
 using NutriTrack.Domain.Entities;
 using NutriTrack.Identity.Configuration;
 using NutriTrackerAPI.Models.DTOs;
+using System.Security.Claims;
 
 namespace NutriTrackerAPI.Controllers;
 
 /// <summary>
-/// CRUD endpoints for ingredient-micronutrient associations. Restricted to administrators.
+/// CRUD endpoints for ingredient-micronutrient associations.
+/// Ingredient authors and admins can manage micronutrients for an ingredient.
 /// Nested under /api/ingredients/{ingredientId}/micronutrients.
 /// </summary>
 [ApiController]
 [Route("api/ingredients/{ingredientId:guid}/micronutrients")]
-[Authorize(Roles = IdentityConstants.Roles.Admin)]
+[Authorize(Roles = IdentityConstants.Roles.User)]
 public class IngredientMicronutrientsController : ControllerBase
 {
     private readonly NutriTrackDbContext _db;
+
+    private Guid GetUserId() => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    private bool IsAdmin() => User.IsInRole(IdentityConstants.Roles.Admin);
 
     public IngredientMicronutrientsController(NutriTrackDbContext db)
     {
@@ -29,9 +34,13 @@ public class IngredientMicronutrientsController : ControllerBase
     public async Task<ActionResult<List<IngredientMicronutrientResponse>>> GetAll(
         Guid ingredientId, CancellationToken ct)
     {
-        var ingredientExists = await _db.Ingredients.AnyAsync(i => i.Id == ingredientId, ct);
-        if (!ingredientExists)
+        var ingredient = await _db.Ingredients.FindAsync([ingredientId], ct);
+        if (ingredient is null)
             return NotFound(new { error = "Ingredient not found." });
+
+        // Non-admin users can only view micronutrients of their own ingredients or public ones
+        if (!IsAdmin() && ingredient.AuthorId != GetUserId() && ingredient.AuthorId != null)
+            return Forbid();
 
         var micronutrients = await _db.IngredientMicronutrients
             .Where(im => im.IngredientId == ingredientId)
@@ -44,14 +53,17 @@ public class IngredientMicronutrientsController : ControllerBase
         return Ok(micronutrients);
     }
 
-    /// <summary>Add a micronutrient to an ingredient.</summary>
+    /// <summary>Add a micronutrient to an ingredient. Ingredient author or admin.</summary>
     [HttpPost]
     public async Task<ActionResult<IngredientMicronutrientResponse>> Create(
         Guid ingredientId, [FromBody] CreateIngredientMicronutrientRequest request, CancellationToken ct)
     {
-        var ingredientExists = await _db.Ingredients.AnyAsync(i => i.Id == ingredientId, ct);
-        if (!ingredientExists)
+        var ingredient = await _db.Ingredients.FindAsync([ingredientId], ct);
+        if (ingredient is null)
             return NotFound(new { error = "Ingredient not found." });
+
+        if (!IsAdmin() && ingredient.AuthorId != GetUserId())
+            return Forbid();
 
         var micronutrientExists = await _db.Micronutrients.AnyAsync(m => m.Id == request.MicronutrientId, ct);
         if (!micronutrientExists)
@@ -79,12 +91,19 @@ public class IngredientMicronutrientsController : ControllerBase
                 ingredientId, request.MicronutrientId, micronutrient!.Name, request.AmountPer100g));
     }
 
-    /// <summary>Update the amount of a micronutrient for an ingredient.</summary>
+    /// <summary>Update the amount of a micronutrient for an ingredient. Ingredient author or admin.</summary>
     [HttpPut("{micronutrientId:guid}")]
     public async Task<ActionResult<IngredientMicronutrientResponse>> Update(
         Guid ingredientId, Guid micronutrientId,
         [FromBody] UpdateIngredientMicronutrientRequest request, CancellationToken ct)
     {
+        var ingredient = await _db.Ingredients.FindAsync([ingredientId], ct);
+        if (ingredient is null)
+            return NotFound(new { error = "Ingredient not found." });
+
+        if (!IsAdmin() && ingredient.AuthorId != GetUserId())
+            return Forbid();
+
         var ingredientMicronutrient = await _db.IngredientMicronutrients
             .Include(im => im.Micronutrient)
             .FirstOrDefaultAsync(
@@ -100,11 +119,18 @@ public class IngredientMicronutrientsController : ControllerBase
             ingredientId, micronutrientId, ingredientMicronutrient.Micronutrient.Name, request.AmountPer100g));
     }
 
-    /// <summary>Remove a micronutrient from an ingredient.</summary>
+    /// <summary>Remove a micronutrient from an ingredient. Ingredient author or admin.</summary>
     [HttpDelete("{micronutrientId:guid}")]
     public async Task<IActionResult> Delete(
         Guid ingredientId, Guid micronutrientId, CancellationToken ct)
     {
+        var ingredient = await _db.Ingredients.FindAsync([ingredientId], ct);
+        if (ingredient is null)
+            return NotFound(new { error = "Ingredient not found." });
+
+        if (!IsAdmin() && ingredient.AuthorId != GetUserId())
+            return Forbid();
+
         var ingredientMicronutrient = await _db.IngredientMicronutrients
             .FirstOrDefaultAsync(
                 im => im.IngredientId == ingredientId && im.MicronutrientId == micronutrientId, ct);

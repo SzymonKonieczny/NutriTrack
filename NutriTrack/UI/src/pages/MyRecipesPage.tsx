@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { api } from '../../api/client';
-import type { Recipe, RecipeNutrition } from '../../dto';
-import type { Ingredient } from '../../dto';
+import { useAuth } from '../context/AuthContext';
+import { api } from '../api/client';
+import type { Recipe, RecipeNutrition, Ingredient } from '../dto';
 
 type ModalMode = 'create' | 'edit' | null;
 
@@ -13,7 +13,13 @@ const VISIBILITY_LABELS: Record<string, string> = {
   Rejected: '❌ Rejected',
 };
 
-export default function RecipesPage() {
+const VISIBILITY_OPTIONS = [
+  { value: 'Private', label: '🔒 Private — only visible to you' },
+  { value: 'Unlisted', label: '🔎 Unlisted — request admin review for publication' },
+];
+
+export default function MyRecipesPage() {
+  const { user } = useAuth();
   const [items, setItems] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -23,41 +29,38 @@ export default function RecipesPage() {
   const [formName, setFormName] = useState('');
   const [formPrepNote, setFormPrepNote] = useState('');
   const [formYoutubeUrl, setFormYoutubeUrl] = useState('');
+  const [formVisibility, setFormVisibility] = useState('Private');
   const [formError, setFormError] = useState<string | null>(null);
   const [formLoading, setFormLoading] = useState(false);
 
   // Ingredient multi-select state (create only)
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
-  const [selectedIngs, setSelectedIngs] = useState<Record<string, string>>({}); // ingredientId → amount string
+  const [selectedIngs, setSelectedIngs] = useState<Record<string, string>>({});
   const [ingSearch, setIngSearch] = useState('');
 
   // Nutrition modal state
-  const [nutritionModal, setNutritionModal] = useState<{ recipeName: string; data: RecipeNutrition | null; loading: boolean; error: string | null } | null>(null);
-
-  // Pending review state
-  const [pendingItems, setPendingItems] = useState<Recipe[]>([]);
-  const [pendingLoading, setPendingLoading] = useState(false);
-  const [pendingError, setPendingError] = useState<string | null>(null);
+  const [nutritionModal, setNutritionModal] = useState<{ recipe: Recipe; data: RecipeNutrition | null; loading: boolean; error: string | null } | null>(null);
 
   const fetch = useCallback(async () => {
     setLoading(true);
     setError(null);
     const res = await api.get<Recipe[]>('/recipes');
     if (res.data) {
-      setItems(res.data.filter((r) => r.visibility !== 'Unlisted'));
-      setPendingItems(res.data.filter((r) => r.visibility === 'Unlisted'));
+      // Filter to show only the current user's recipes
+      const myItems = res.data.filter((r) => r.authorId === user?.id);
+      setItems(myItems);
     } else setError(res.error);
     setLoading(false);
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => { fetch(); }, [fetch]);
 
   const openCreate = async () => {
     setEditing(null);
     setFormName(''); setFormPrepNote(''); setFormYoutubeUrl('');
+    setFormVisibility('Private');
     setFormError(null); setSelectedIngs({});
     setIngSearch('');
-    // Fetch ingredients for the multi-select
     const res = await api.get<Ingredient[]>('/ingredients');
     if (res.data) setIngredients(res.data);
     else setIngredients([]);
@@ -67,7 +70,9 @@ export default function RecipesPage() {
   const openEdit = (item: Recipe) => {
     setEditing(item);
     setFormName(item.name); setFormPrepNote(item.prepNote || '');
-    setFormYoutubeUrl(item.youTubeUrl || ''); setFormError(null); setSelectedIngs({});
+    setFormYoutubeUrl(item.youTubeUrl || '');
+    setFormVisibility(item.visibility || 'Private');
+    setFormError(null); setSelectedIngs({});
     setModalMode('edit');
   };
 
@@ -79,12 +84,12 @@ export default function RecipesPage() {
   };
 
   const openNutrition = async (item: Recipe) => {
-    setNutritionModal({ recipeName: item.name, data: null, loading: true, error: null });
+    setNutritionModal({ recipe: item, data: null, loading: true, error: null });
     const res = await api.get<RecipeNutrition>(`/recipes/${item.id}/nutrition`);
     if (res.data) {
-      setNutritionModal({ recipeName: item.name, data: res.data, loading: false, error: null });
+      setNutritionModal({ recipe: item, data: res.data, loading: false, error: null });
     } else {
-      setNutritionModal({ recipeName: item.name, data: null, loading: false, error: res.error });
+      setNutritionModal({ recipe: item, data: null, loading: false, error: res.error });
     }
   };
 
@@ -103,6 +108,7 @@ export default function RecipesPage() {
       name: formName.trim(),
       prepNote: formPrepNote || null,
       youTubeUrl: formYoutubeUrl || null,
+      visibility: formVisibility,
       ingredients: ingredientsPayload.length > 0 ? ingredientsPayload : undefined,
     });
     setFormLoading(false);
@@ -121,6 +127,7 @@ export default function RecipesPage() {
       name: formName.trim(),
       prepNote: formPrepNote || null,
       youTubeUrl: formYoutubeUrl || null,
+      visibility: formVisibility,
     });
     setFormLoading(false);
     if (res.data) {
@@ -135,94 +142,25 @@ export default function RecipesPage() {
     setSelectedIngs((prev) => ({ ...prev, [id]: value }));
   };
 
-  const handleApprove = async (id: string) => {
-    if (!window.confirm('Approve this recipe for publication?')) return;
-    setPendingLoading(true);
-    setPendingError(null);
-    const res = await api.put<Recipe>(`/recipes/${id}/approve`);
-    setPendingLoading(false);
-    if (res.data) {
-      setPendingItems((prev) => prev.filter((r) => r.id !== id));
-      setItems((prev) => [...prev, res.data!]);
-    } else {
-      setPendingError(res.error);
-    }
-  };
-
-  const handleReject = async (id: string) => {
-    if (!window.confirm('Reject this recipe? The author will be notified.')) return;
-    setPendingLoading(true);
-    setPendingError(null);
-    const res = await api.put<Recipe>(`/recipes/${id}/reject`);
-    setPendingLoading(false);
-    if (res.data) {
-      setPendingItems((prev) => prev.filter((r) => r.id !== id));
-      setItems((prev) => [...prev, res.data!]);
-    } else {
-      setPendingError(res.error);
-    }
-  };
-
-  if (loading) return <div className="spinner">Loading recipes...</div>;
-
+  if (loading) return <div className="spinner">Loading your recipes...</div>;
+  console.log('test');
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
         <div>
-          <h1>Recipes</h1>
-          <p className="text-muted text-sm">Manage recipes and their ingredients.</p>
+          <h1>My Recipes</h1>
+          <p className="text-muted text-sm">Create and manage your own recipes.</p>
         </div>
         <button className="btn btn-primary" onClick={openCreate}>+ New Recipe</button>
       </div>
 
       {error && <div className="alert alert-error mb-2">{error}<button className="btn btn-ghost btn-sm" onClick={fetch} style={{marginLeft:'auto'}}>Retry</button></div>}
 
-      {!loading && !error && items.length === 0 && pendingItems.length === 0 && (
+      {!loading && !error && items.length === 0 && (
         <div className="empty-state">
           <h3>No recipes yet</h3>
-          <p>Create your first recipe to get started.</p>
+          <p>Create your own recipes to track custom meals.</p>
           <button className="btn btn-primary mt-1" onClick={openCreate}>Create Recipe</button>
-        </div>
-      )}
-
-      {/* ─── Pending Review Section ─── */}
-      {pendingItems.length > 0 && (
-        <div className="card mb-2">
-          <div className="flex items-center justify-between mb-1">
-            <h2>🔎 Pending Review</h2>
-            {pendingLoading && <span className="text-muted text-sm">Processing...</span>}
-          </div>
-          {pendingError && <div className="alert alert-error mb-1">{pendingError}</div>}
-          <p className="text-muted text-sm mb-1">These recipes have been submitted for review by their authors.</p>
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Prep Note</th>
-                  <th>YouTube</th>
-                  <th>Author</th>
-                  <th style={{ width: 200 }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pendingItems.map((item) => (
-                  <tr key={item.id}>
-                    <td><strong>{item.name}</strong></td>
-                    <td className="text-muted text-sm">{item.prepNote || '—'}</td>
-                    <td className="text-sm">{item.youTubeUrl ? <a href={item.youTubeUrl} target="_blank" rel="noopener noreferrer">Watch</a> : '—'}</td>
-                    <td className="text-muted text-sm">{item.authorId ? item.authorId.substring(0, 8) + '…' : 'System'}</td>
-                    <td>
-                      <div className="flex gap-1">
-                        <button className="btn btn-success btn-sm" onClick={() => handleApprove(item.id)} disabled={pendingLoading}>✅ Approve</button>
-                        <button className="btn btn-danger btn-sm" onClick={() => handleReject(item.id)} disabled={pendingLoading}>❌ Reject</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
         </div>
       )}
 
@@ -233,9 +171,8 @@ export default function RecipesPage() {
               <tr>
                 <th>Name</th>
                 <th>Prep Note</th>
-                <th>YouTube</th>
                 <th>Visibility</th>
-                <th style={{ width: 160 }}>Actions</th>
+                <th style={{ width: 200 }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -243,12 +180,11 @@ export default function RecipesPage() {
                 <tr key={item.id}>
                   <td><strong>{item.name}</strong></td>
                   <td className="text-muted text-sm">{item.prepNote || '—'}</td>
-                  <td className="text-sm">{item.youTubeUrl ? <a href={item.youTubeUrl} target="_blank" rel="noopener noreferrer">Watch</a> : '—'}</td>
                   <td><span className="badge">{VISIBILITY_LABELS[item.visibility ?? 'Private'] || item.visibility}</span></td>
                   <td>
                     <div className="flex gap-1">
                       <button className="btn btn-ghost btn-sm" onClick={() => openNutrition(item)} title="View nutrition">📊</button>
-                      <Link to={`/admin/recipes/${item.id}`} className="btn btn-ghost btn-sm">🥘</Link>
+                      <Link to={`/my-recipes/${item.id}/ingredients`} className="btn btn-ghost btn-sm" title="Manage ingredients">🥘</Link>
                       <button className="btn btn-ghost btn-sm" onClick={() => openEdit(item)}>✏️</button>
                       <button className="btn btn-ghost btn-sm" onClick={() => handleDelete(item.id)}>🗑️</button>
                     </div>
@@ -270,16 +206,29 @@ export default function RecipesPage() {
             <div className="modal-body">
               {formError && <div className="alert alert-error">{formError}</div>}
               <div className="form-group">
-                <label htmlFor="rec-name">Name</label>
-                <input id="rec-name" type="text" className="form-input" value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="e.g. Chicken Salad" required />
+                <label htmlFor="my-rec-name">Name</label>
+                <input id="my-rec-name" type="text" className="form-input" value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="e.g. Chicken Salad" required />
               </div>
               <div className="form-group">
-                <label htmlFor="rec-prep-note">Prep Note</label>
-                <input id="rec-prep-note" type="text" className="form-input" value={formPrepNote} onChange={(e) => setFormPrepNote(e.target.value)} placeholder="Optional preparation note" />
+                <label htmlFor="my-rec-prep-note">Prep Note</label>
+                <input id="my-rec-prep-note" type="text" className="form-input" value={formPrepNote} onChange={(e) => setFormPrepNote(e.target.value)} placeholder="Optional preparation note" />
               </div>
               <div className="form-group">
-                <label htmlFor="rec-youtube">YouTube URL</label>
-                <input id="rec-youtube" type="url" className="form-input" value={formYoutubeUrl} onChange={(e) => setFormYoutubeUrl(e.target.value)} placeholder="https://youtube.com/..." />
+                <label htmlFor="my-rec-youtube">YouTube URL</label>
+                <input id="my-rec-youtube" type="url" className="form-input" value={formYoutubeUrl} onChange={(e) => setFormYoutubeUrl(e.target.value)} placeholder="https://youtube.com/..." />
+              </div>
+              <div className="form-group">
+                <label htmlFor="my-rec-visibility">Visibility</label>
+                <select id="my-rec-visibility" className="form-select" value={formVisibility} onChange={(e) => setFormVisibility(e.target.value)}>
+                  {VISIBILITY_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+                <p className="text-muted text-sm mt-1">
+                  {formVisibility === 'Private'
+                    ? 'Only you and admins can see this recipe.'
+                    : 'Admins will review your recipe for potential publication.'}
+                </p>
               </div>
 
               {modalMode === 'create' && ingredients.length > 0 && (
@@ -341,7 +290,7 @@ export default function RecipesPage() {
         <div className="modal-overlay">
           <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>📊 {nutritionModal.recipeName} — Nutrition</h2>
+              <h2>📊 {nutritionModal.recipe.name} — Nutrition</h2>
               <button className="btn btn-ghost" onClick={() => setNutritionModal(null)}>✕</button>
             </div>
             <div className="modal-body">

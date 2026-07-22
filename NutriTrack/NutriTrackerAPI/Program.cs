@@ -2,14 +2,19 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using NutriTrack.Application;
+using NutriTrack.Application.Abstractions;
 using NutriTrack.Domain.Data;
 using NutriTrack.Identity;
 using NutriTrack.Identity.Data;
+using NutriTrackerAPI.Auth;
 
 var builder = WebApplication.CreateBuilder(args);
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IUserContext, UserContext>();
 
 builder.Services.AddNutriTrackDomain(connectionString);
 builder.Services.AddNutriTrackIdentity(builder.Configuration, connectionString);
