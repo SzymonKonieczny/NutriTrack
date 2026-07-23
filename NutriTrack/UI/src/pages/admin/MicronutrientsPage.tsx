@@ -17,6 +17,7 @@ export default function MicronutrientsPage() {
   const [formUnit, setFormUnit] = useState('Mg');
   const [formDra, setFormDra] = useState('');
   const [formNote, setFormNote] = useState('');
+  const [formNonFood, setFormNonFood] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [formLoading, setFormLoading] = useState(false);
 
@@ -33,14 +34,14 @@ export default function MicronutrientsPage() {
 
   const openCreate = () => {
     setEditing(null);
-    setFormName(''); setFormUnit('Mg'); setFormDra(''); setFormNote('');
+    setFormName(''); setFormUnit('Mg'); setFormDra(''); setFormNote(''); setFormNonFood(false);
     setFormError(null); setModalMode('create');
   };
 
   const openEdit = (item: Micronutrient) => {
     setEditing(item);
     setFormName(item.name); setFormUnit(item.unit); setFormDra(item.dailyReferenceAmount.toString());
-    setFormNote(item.note || ''); setFormError(null); setModalMode('edit');
+    setFormNote(item.note || ''); setFormNonFood(item.isNonFoodSource); setFormError(null); setModalMode('edit');
   };
 
   const handleDelete = async (id: string) => {
@@ -58,6 +59,7 @@ export default function MicronutrientsPage() {
       dailyReferenceAmount: parseFloat(formDra),
       unit: formUnit,
       note: formNote || null,
+      isNonFoodSource: formNonFood,
     });
     setFormLoading(false);
     if (res.data) {
@@ -76,6 +78,7 @@ export default function MicronutrientsPage() {
       dailyReferenceAmount: parseFloat(formDra),
       unit: formUnit,
       note: formNote || null,
+      isNonFoodSource: formNonFood,
     });
     setFormLoading(false);
     if (res.data) {
@@ -116,6 +119,7 @@ export default function MicronutrientsPage() {
                 <th>Name</th>
                 <th>Daily Reference</th>
                 <th>Unit</th>
+                <th>Non-food?</th>
                 <th>Note</th>
                 <th style={{ width: 100 }}>Actions</th>
               </tr>
@@ -126,6 +130,7 @@ export default function MicronutrientsPage() {
                   <td><strong>{item.name}</strong></td>
                   <td>{item.dailyReferenceAmount}</td>
                   <td>{item.unit}</td>
+                  <td>{item.isNonFoodSource ? '✅ Yes' : '—'}</td>
                   <td className="text-muted text-sm">{item.note || '—'}</td>
                   <td>
                     <div className="flex gap-1">
@@ -168,6 +173,12 @@ export default function MicronutrientsPage() {
               <div className="form-group">
                 <label htmlFor="mic-note">Note</label>
                 <input id="mic-note" type="text" className="form-input" value={formNote} onChange={(e) => setFormNote(e.target.value)} placeholder="Optional note" />
+              </div>
+              <div className="form-group">
+                <label className="checkbox-label">
+                  <input type="checkbox" checked={formNonFood} onChange={(e) => setFormNonFood(e.target.checked)} />
+                  <span>Non-food source (e.g. sunlight, supplements)</span>
+                </label>
               </div>
             </div>
             <div className="modal-actions">

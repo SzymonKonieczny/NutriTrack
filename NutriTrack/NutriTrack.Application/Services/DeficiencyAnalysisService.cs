@@ -75,6 +75,7 @@ internal sealed class DeficiencyAnalysisService : IDeficiencyAnalysisService
         // 2. Sum micronutrient consumption across all meal logs
         //    Key:   (micronutrientId, name, unit)
         //    Value: total amount consumed
+        //    Excludes non-food-source micronutrients (e.g. sunlight, supplements).
         // -----------------------------------------------------------------------
         var consumedTotals = new Dictionary<(Guid Id, string Name, string Unit), decimal>();
 
@@ -87,6 +88,8 @@ internal sealed class DeficiencyAnalysisService : IDeficiencyAnalysisService
                 {
                     foreach (var im in ri.Ingredient.IngredientMicronutrients)
                     {
+                        if (im.Micronutrient.IsNonFoodSource)
+                            continue;
                         var amount = im.AmountPer100g * ri.AmountInGrams / 100m * servings;
                         var key = (im.MicronutrientId, im.Micronutrient.Name, im.Micronutrient.Unit.ToString());
                         consumedTotals[key] = consumedTotals.GetValueOrDefault(key) + amount;
@@ -98,6 +101,8 @@ internal sealed class DeficiencyAnalysisService : IDeficiencyAnalysisService
                 var grams = mealLog.AmountInGrams ?? 100m;
                 foreach (var im in mealLog.Ingredient.IngredientMicronutrients)
                 {
+                    if (im.Micronutrient.IsNonFoodSource)
+                        continue;
                     var amount = im.AmountPer100g * grams / 100m;
                     var key = (im.MicronutrientId, im.Micronutrient.Name, im.Micronutrient.Unit.ToString());
                     consumedTotals[key] = consumedTotals.GetValueOrDefault(key) + amount;
@@ -106,13 +111,17 @@ internal sealed class DeficiencyAnalysisService : IDeficiencyAnalysisService
         }
 
         // -----------------------------------------------------------------------
-        // 3. Load all micronutrients with their daily reference amounts
+        // 3. Load all food-sourced micronutrients with their daily reference amounts
         // -----------------------------------------------------------------------
-        var allMicronutrients = await _db.Micronutrients.ToListAsync(ct);
+        var allMicronutrients = await _db.Micronutrients
+            .Where(m => !m.IsNonFoodSource)
+            .ToListAsync(ct);
         var referenceLookup = allMicronutrients.ToDictionary(m => m.Id);
 
         // -----------------------------------------------------------------------
-        // 4. Compute deficit percentage per micronutrient and rank
+        // 4. Compute deficit percentage per micronutrient and rank.
+        //    Only food-sourced micronutrients (those consumed via ingredients)
+        //    are analyzed; non-food sources (sunlight, supplements) are excluded.
         //    Deficit % = max(0, (RDA - avgDaily) / RDA * 100)
         // -----------------------------------------------------------------------
         var daysInRange = Math.Max(1, (int)(DateTime.UtcNow - cutoffDate).TotalDays);

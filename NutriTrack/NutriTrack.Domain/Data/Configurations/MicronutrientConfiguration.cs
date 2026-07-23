@@ -23,5 +23,8 @@ public class MicronutrientConfiguration : IEntityTypeConfiguration<Micronutrient
         builder.Property(e => e.Unit)
                .HasConversion<string>()
                .HasMaxLength(50);
+
+        builder.Property(e => e.IsNonFoodSource)
+               .HasDefaultValue(false);
     }
 }

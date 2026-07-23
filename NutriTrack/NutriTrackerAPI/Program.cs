@@ -63,22 +63,23 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
+
+using var scope = app.Services.CreateScope();
+var identityDb = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
+identityDb.Database.Migrate();
+var domainDb = scope.ServiceProvider.GetRequiredService<NutriTrackDbContext>();
+domainDb.Database.Migrate();
+
+// Seed roles
+var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+foreach (var roleName in new[] { "Admin", "User" })
+{
+    if (!await roleManager.RoleExistsAsync(roleName))
+        await roleManager.CreateAsync(new IdentityRole(roleName));
+}
+    
 if (app.Environment.IsDevelopment())
 {
-    using var scope = app.Services.CreateScope();
-    var identityDb = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
-    identityDb.Database.Migrate();
-    var domainDb = scope.ServiceProvider.GetRequiredService<NutriTrackDbContext>();
-    domainDb.Database.Migrate();
-
-      // Seed roles
-      var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-      foreach (var roleName in new[] { "Admin", "User" })
-      {
-          if (!await roleManager.RoleExistsAsync(roleName))
-              await roleManager.CreateAsync(new IdentityRole(roleName));
-      }
-    
     app.UseSwagger();
     app.UseSwaggerUI();
 }

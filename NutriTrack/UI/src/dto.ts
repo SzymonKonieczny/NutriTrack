@@ -23,6 +23,7 @@ export interface Micronutrient {
   dailyReferenceAmount: number;
   unit: string;
   note: string | null;
+  isNonFoodSource: boolean;
 }
 
 export interface MicronutrientRef {

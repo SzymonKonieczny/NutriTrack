@@ -5,14 +5,16 @@ public record CreateMicronutrientRequest(
     string Name,
     decimal DailyReferenceAmount,
     string Unit,
-    string? Note = null);
+    string? Note = null,
+    bool IsNonFoodSource = false);
 
 /// <summary>Request to update an existing micronutrient.</summary>
 public record UpdateMicronutrientRequest(
     string Name,
     decimal DailyReferenceAmount,
     string Unit,
-    string? Note = null);
+    string? Note = null,
+    bool IsNonFoodSource = false);
 
 /// <summary>Response containing micronutrient data.</summary>
 public record MicronutrientResponse(
@@ -20,4 +22,5 @@ public record MicronutrientResponse(
     string Name,
     decimal DailyReferenceAmount,
     string Unit,
-    string? Note);
+    string? Note,
+    bool IsNonFoodSource);

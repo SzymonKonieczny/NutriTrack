@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NutriTrack.Domain.Data;
 
@@ -10,9 +11,11 @@ using NutriTrack.Domain.Data;
 namespace NutriTrack.Domain.Migrations
 {
     [DbContext(typeof(NutriTrackDbContext))]
-    partial class NutriTrackDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260723114528_AddIsNonFoodSourceToMicronutrients")]
+    partial class AddIsNonFoodSourceToMicronutrients
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

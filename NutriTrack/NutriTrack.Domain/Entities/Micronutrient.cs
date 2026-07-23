@@ -9,6 +9,7 @@ public class Micronutrient
     public decimal DailyReferenceAmount { get; set; }
     public MicronutrientUnit Unit { get; set; }
     public string? Note { get; set; }
+    public bool IsNonFoodSource { get; set; }
 
     // Navigation
     public ICollection<IngredientMicronutrient> IngredientMicronutrients { get; set; } = new List<IngredientMicronutrient>();

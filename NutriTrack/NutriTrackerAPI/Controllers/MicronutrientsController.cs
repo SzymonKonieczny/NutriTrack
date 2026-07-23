@@ -31,7 +31,7 @@ public class MicronutrientsController : ControllerBase
         var micronutrients = await _db.Micronutrients
             .OrderBy(m => m.Name)
             .Select(m => new MicronutrientResponse(
-                m.Id, m.Name, m.DailyReferenceAmount, m.Unit.ToString(), m.Note))
+                m.Id, m.Name, m.DailyReferenceAmount, m.Unit.ToString(), m.Note, m.IsNonFoodSource))
             .ToListAsync(ct);
 
         return Ok(micronutrients);
@@ -48,7 +48,8 @@ public class MicronutrientsController : ControllerBase
 
         return Ok(new MicronutrientResponse(
             micronutrient.Id, micronutrient.Name,
-            micronutrient.DailyReferenceAmount, micronutrient.Unit.ToString(), micronutrient.Note));
+            micronutrient.DailyReferenceAmount, micronutrient.Unit.ToString(),
+            micronutrient.Note, micronutrient.IsNonFoodSource));
     }
 
     /// <summary>Create a new micronutrient.</summary>
@@ -70,6 +71,7 @@ public class MicronutrientsController : ControllerBase
             DailyReferenceAmount = request.DailyReferenceAmount,
             Unit = unit,
             Note = request.Note,
+            IsNonFoodSource = request.IsNonFoodSource,
         };
 
         _db.Micronutrients.Add(micronutrient);
@@ -78,7 +80,8 @@ public class MicronutrientsController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = micronutrient.Id },
             new MicronutrientResponse(
                 micronutrient.Id, micronutrient.Name,
-                micronutrient.DailyReferenceAmount, micronutrient.Unit.ToString(), micronutrient.Note));
+                micronutrient.DailyReferenceAmount, micronutrient.Unit.ToString(),
+                micronutrient.Note, micronutrient.IsNonFoodSource));
     }
 
     /// <summary>Update an existing micronutrient.</summary>
@@ -97,12 +100,14 @@ public class MicronutrientsController : ControllerBase
         micronutrient.DailyReferenceAmount = request.DailyReferenceAmount;
         micronutrient.Unit = unit;
         micronutrient.Note = request.Note;
+        micronutrient.IsNonFoodSource = request.IsNonFoodSource;
 
         await _db.SaveChangesAsync(ct);
 
         return Ok(new MicronutrientResponse(
             micronutrient.Id, micronutrient.Name,
-            micronutrient.DailyReferenceAmount, micronutrient.Unit.ToString(), micronutrient.Note));
+            micronutrient.DailyReferenceAmount, micronutrient.Unit.ToString(),
+            micronutrient.Note, micronutrient.IsNonFoodSource));
     }
 
     /// <summary>Delete a micronutrient.</summary>
