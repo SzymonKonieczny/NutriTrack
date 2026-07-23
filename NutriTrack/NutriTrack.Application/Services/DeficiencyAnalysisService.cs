@@ -83,16 +83,29 @@ internal sealed class DeficiencyAnalysisService : IDeficiencyAnalysisService
         {
             if (mealLog.RecipeId is not null && mealLog.Recipe is not null)
             {
-                var servings = mealLog.Servings ?? 1m;
-                foreach (var ri in mealLog.Recipe.RecipeIngredients)
+                // Total weight of the entire recipe, from all its ingredients.
+                var totalRecipeWeight = mealLog.Recipe.RecipeIngredients.Sum(ri => ri.AmountInGrams);
+
+                // How much of the recipe was eaten: (AmountInGrams ?? 100) * (Servings ?? 1).
+                var consumedWeight = (mealLog.AmountInGrams ?? 100m) * (mealLog.Servings ?? 1m);
+
+                if (totalRecipeWeight > 0 && consumedWeight > 0)
                 {
-                    foreach (var im in ri.Ingredient.IngredientMicronutrients)
+                    var ratio = consumedWeight / totalRecipeWeight;
+
+                    foreach (var ri in mealLog.Recipe.RecipeIngredients)
                     {
-                        if (im.Micronutrient.IsNonFoodSource)
-                            continue;
-                        var amount = im.AmountPer100g * ri.AmountInGrams / 100m * servings;
-                        var key = (im.MicronutrientId, im.Micronutrient.Name, im.Micronutrient.Unit.ToString());
-                        consumedTotals[key] = consumedTotals.GetValueOrDefault(key) + amount;
+                        foreach (var im in ri.Ingredient.IngredientMicronutrients)
+                        {
+                            if (im.Micronutrient.IsNonFoodSource)
+                                continue;
+
+                            // Full-recipe contribution of this micronutrient, scaled by the proportion eaten.
+                            var fullRecipeAmount = im.AmountPer100g * ri.AmountInGrams / 100m;
+                            var amount = fullRecipeAmount * ratio;
+                            var key = (im.MicronutrientId, im.Micronutrient.Name, im.Micronutrient.Unit.ToString());
+                            consumedTotals[key] = consumedTotals.GetValueOrDefault(key) + amount;
+                        }
                     }
                 }
             }
