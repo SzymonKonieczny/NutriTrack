@@ -4,7 +4,7 @@ import type { Micronutrient } from '../../dto';
 
 type ModalMode = 'create' | 'edit' | null;
 
-const UNITS = ['Mg', 'Mcg', 'IU'];
+const UNITS = ['Mg', 'Mcg', 'IU', 'G'];
 
 export default function MicronutrientsPage() {
   const [items, setItems] = useState<Micronutrient[]>([]);

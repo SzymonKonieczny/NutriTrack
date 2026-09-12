@@ -58,7 +58,7 @@ public class MicronutrientsController : ControllerBase
         [FromBody] CreateMicronutrientRequest request, CancellationToken ct)
     {
         if (!Enum.TryParse<NutriTrack.Domain.Enums.MicronutrientUnit>(request.Unit, ignoreCase: true, out var unit))
-            return BadRequest(new { error = $"Invalid unit '{request.Unit}'. Valid values: Mg, Mcg, IU." });
+            return BadRequest(new { error = $"Invalid unit '{request.Unit}'. Valid values: Mg, Mcg, IU, G." });
 
         if(_db.Micronutrients.Any(m => m.Name == request.Name.Trim().ToLower()))
         {
@@ -94,7 +94,7 @@ public class MicronutrientsController : ControllerBase
             return NotFound();
 
         if (!Enum.TryParse<NutriTrack.Domain.Enums.MicronutrientUnit>(request.Unit, ignoreCase: true, out var unit))
-            return BadRequest(new { error = $"Invalid unit '{request.Unit}'. Valid values: Mg, Mcg, IU." });
+            return BadRequest(new { error = $"Invalid unit '{request.Unit}'. Valid values: Mg, Mcg, IU, G." });
 
         micronutrient.Name = request.Name;
         micronutrient.DailyReferenceAmount = request.DailyReferenceAmount;

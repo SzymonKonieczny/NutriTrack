@@ -4,5 +4,6 @@ public enum MicronutrientUnit
 {
     Mg,
     Mcg,
-    IU
+    IU,
+    G
 }
